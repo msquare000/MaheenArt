@@ -489,16 +489,13 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
   position: relative;
   width: 100%;
   max-width: 1150px;
-
-  /* Give the orbit much more vertical room */
-  height: clamp(650px, 70vw, 900px);
-
+  height: clamp(300px, 40vw, 440px);
   margin-top: 0.5rem;
   z-index: 1;
-
-  /* Keep layout isolation only */
-  contain: layout;
+  contain: layout;          /* isolate the reels' repaints from the page */
 }
+
+
 
 /* A tile is one CELL OF FILM: black film base, sprocket holes top & bottom,
    the painting in the middle. Laid end-to-end along a tilted ellipse they
