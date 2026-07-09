@@ -371,12 +371,13 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
   border-bottom: 1px solid transparent;
 }
 .nav.is-scrolled {
-  /* opaque fill instead of a live backdrop-filter blur (which re-blurred the
-     whole viewport every scroll frame — a top scroll-jank source) */
   background: rgba(var(--bg-rgb), 0.94);
   padding-top: 0.9rem;
   padding-bottom: 0.9rem;
-  border-bottom: 1px solid var(--line);
+
+  border-bottom: none;
+  /* or */
+  /* border-bottom: 1px solid transparent; */
 }
 .nav__logo {
   font-family: var(--font-display);
