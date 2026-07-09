@@ -10,6 +10,9 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<!-- warm the very first intro thumbnail so the preloader paints instantly -->
+<link rel="preload" as="image" href="assets/paintings/sm/painting-01.jpg" fetchpriority="high">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Albert+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/style.css">
@@ -155,7 +158,7 @@
   <!-- ================= ABOUT ================= -->
   <section class="about" id="about">
     <div class="about__image" data-reveal>
-      <img src="assets/paintings/painting-06.jpg" alt="Detail of an oil painting by Maheen, showing brushwork and light">
+      <img src="assets/paintings/md/painting-06.jpg" alt="Detail of an oil painting by Maheen, showing brushwork and light" width="900" height="1200" loading="lazy" decoding="async">
       <div class="about__frame"></div>
     </div>
     <div class="about__content">
@@ -257,7 +260,7 @@
   </div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="js/main.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script defer src="js/main.js"></script>
 </body>
 </html>

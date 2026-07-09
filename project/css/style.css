@@ -250,7 +250,7 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
   width: 40vh; height: 60vh;       /* JS overrides per image */
   transform: scale(1.45);          /* JS drives this from scroll */
   transform-origin: center 46%;
-  will-change: transform, width, height;
+  will-change: transform;          /* scroll animates transform (compositor) only */
   transition: width 0.55s var(--ease), height 0.55s var(--ease);
   cursor: pointer;
 }
@@ -260,9 +260,9 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
   padding: 16px;
   background: linear-gradient(145deg, #d9b25e, #a9781f 40%, #caa04b 70%, #8c6a1e);
   border-radius: var(--radius);
+  /* one moderate shadow (was a 90px-blur triple stack re-rasterised every scroll scale) */
   box-shadow:
-    0 40px 90px rgba(36,31,24,0.34),
-    0 8px 22px rgba(36,31,24,0.22),
+    0 24px 50px rgba(36,31,24,0.30),
     inset 0 0 0 1px rgba(255,255,255,0.25);
   transition: border-radius 0.55s var(--ease);
 }
@@ -281,6 +281,7 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
   overflow: hidden;
   background: #111;
   border-radius: 1px;
+  contain: strict;                /* the flipbook repaints stay inside the frame */
   transition: border-radius 0.55s var(--ease);
 }
 .reel-screen .reel-shot {
@@ -340,15 +341,17 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
 /* ---------- cursor glow (desktop only, signature ambient light) ---------- */
 .cursor-glow {
   position: fixed;
-  width: 420px;
-  height: 420px;
+  width: 360px;
+  height: 360px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 2;
   background: radial-gradient(circle, rgba(183,134,46,0.10) 0%, rgba(183,134,46,0) 70%);
-  transform: translate(-50%, -50%);
-  left: -999px; top: -999px;
-  transition: left 0.18s linear, top 0.18s linear;
+  left: 0; top: 0;
+  /* JS moves it with translate3d — a compositor transform, no per-move repaint */
+  transform: translate3d(-999px, -999px, 0) translate(-50%, -50%);
+  transition: transform 0.18s linear;
+  will-change: transform;
 }
 @media (hover: none) { .cursor-glow { display: none; } }
 
@@ -364,12 +367,13 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
   justify-content: space-between;
   padding: 1.4rem var(--pad);
   background: linear-gradient(to bottom, rgba(var(--bg-rgb),0.85), rgba(var(--bg-rgb),0));
-  transition: background 0.4s ease, padding 0.4s ease, backdrop-filter 0.4s ease, border-color 0.4s ease;
+  transition: background 0.4s ease, padding 0.4s ease, border-color 0.4s ease;
   border-bottom: 1px solid transparent;
 }
 .nav.is-scrolled {
-  background: rgba(var(--bg-rgb), 0.88);
-  backdrop-filter: blur(10px);
+  /* opaque fill instead of a live backdrop-filter blur (which re-blurred the
+     whole viewport every scroll frame — a top scroll-jank source) */
+  background: rgba(var(--bg-rgb), 0.94);
   padding-top: 0.9rem;
   padding-bottom: 0.9rem;
   border-bottom: 1px solid var(--line);
@@ -488,6 +492,7 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
   height: clamp(300px, 40vw, 440px);
   margin-top: 0.5rem;
   z-index: 1;
+  contain: layout paint;          /* isolate the reels' repaints from the page */
 }
 
 /* A tile is one CELL OF FILM: black film base, sprocket holes top & bottom,
@@ -530,8 +535,8 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
 }
 
 .orbit-stage.is-hovering .reel-tile:not(.is-active) {
-  filter: blur(6px);
-  opacity: 0.45 !important;
+  /* dim (compositor) instead of blurring 23 tiles at once (paint spike) */
+  opacity: 0.32 !important;
 }
 .reel-tile.is-active {
   filter: blur(0) !important;
@@ -559,7 +564,7 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
 /* soft scrim: keeps the centred text perfectly readable as the reels pass */
 .orbit-scrim {
   position: absolute;
-  left: 50%; top: 50%;
+  left: 50%; top: 40%;
   transform: translate(-50%, -50%);
   width: min(150%, 760px);
   height: min(150%, 400px);

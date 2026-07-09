@@ -91,11 +91,18 @@
      CURSOR GLOW (desktop ambient light, echoes the sunburst motif)
   ------------------------------------------------------------------ */
   const glow = document.getElementById("cursorGlow");
-  if (window.matchMedia("(hover: hover)").matches) {
+  if (glow && window.matchMedia("(hover: hover)").matches) {
+    let gx = 0, gy = 0, gTick = false;
     document.addEventListener("mousemove", (e) => {
-      glow.style.left = e.clientX + "px";
-      glow.style.top = e.clientY + "px";
-    });
+      gx = e.clientX; gy = e.clientY;
+      if (gTick) return;
+      gTick = true;
+      requestAnimationFrame(() => {
+        // compositor-only move (no per-mousemove repaint of the 400px gradient)
+        glow.style.transform = `translate3d(${gx}px, ${gy}px, 0) translate(-50%, -50%)`;
+        gTick = false;
+      });
+    }, { passive: true });
   }
 
   /* ------------------------------------------------------------------
@@ -145,11 +152,21 @@
       el.setAttribute("role", "button");
       el.setAttribute("tabindex", "0");
       el.setAttribute("aria-label", `View ${p.title}`);
-      el.innerHTML =
-        `<img class="reel-tile__img" src="assets/paintings/${p.file}" alt="${p.title} — original oil painting by Maheen">` +
-        `<span class="reel-tile__tag">${p.title}</span>`;
+      // 480px thumbnail (≈21KB) instead of the full-res original (up to 3.2MB)
+      const img = document.createElement("img");
+      img.className = "reel-tile__img";
+      img.src = `assets/paintings/sm/${p.file}`;
+      img.alt = `${p.title} — original oil painting by Maheen`;
+      img.width = 480; img.height = 480;
+      img.decoding = "async";
+      if (i === 0) img.fetchPriority = "high";
+      const tag = document.createElement("span");
+      tag.className = "reel-tile__tag";
+      tag.textContent = p.title;
+      el.appendChild(img);
+      el.appendChild(tag);
       layer.appendChild(el);
-      return { el, i, reel: i % 2, baseAngle: 0, blend: 0, sx: 0, sy: 0, srot: 0 };
+      return { el, img, i, reel: i % 2, baseAngle: 0, blend: 0, sx: 0, sy: 0, srot: 0 };
     });
     // space each reel's tiles evenly around its ellipse
     [0, 1].forEach((r) => {
@@ -177,24 +194,27 @@
       });
     });
 
-    /* ---- geometry ----
+    /* ---- geometry (cached — ZERO getBoundingClientRect reads inside the loop) ----
        While the tiles live in the fixed intro layer their 50%/50% anchor is the
        viewport centre; once re-parented into the stage it becomes the stage
-       centre. `origin` bridges the two so the swap is invisible. */
-    const origin = { x: 0, y: 0 };
+       centre. offCX/offCY bridge the two so the swap is invisible. The stage
+       size only changes on resize, so we measure once here and cache it. */
     let inStage = false;
-    function updateOrigin() {
-      if (inStage) { origin.x = 0; origin.y = 0; return; }
+    let stageW = 1, stageH = 1, offCX = 0, offCY = 0;
+    function measureStage() {
       const r = orbitStage.getBoundingClientRect();
-      origin.x = r.left + r.width / 2 - window.innerWidth / 2;
-      origin.y = r.top + r.height / 2 - window.innerHeight / 2;
+      stageW = r.width || 1;
+      stageH = r.height || 1;
+      if (inStage) { offCX = 0; offCY = 0; }
+      else {
+        offCX = r.left + r.width / 2 - window.innerWidth / 2;
+        offCY = r.top + r.height / 2 - window.innerHeight / 2;
+      }
     }
 
     function orbitPos(t, time) {
-      const r = orbitStage.getBoundingClientRect();
-      const W = r.width || 1, H = r.height || 1;
-      const rx = CFG.rx * W, ry = CFG.ry * H;
-      const ox = CFG.offX * W, oy = CFG.offY * H;
+      const rx = CFG.rx * stageW, ry = CFG.ry * stageH;
+      const ox = CFG.offX * stageW, oy = CFG.offY * stageH;
       const left = t.reel === 0;
       const tiltDeg = left ? CFG.tiltA : CFG.tiltB;
       const tilt = (tiltDeg * Math.PI) / 180;
@@ -205,8 +225,8 @@
 
       // a tilted ellipse — the path the strip of film runs along
       const lx = Math.cos(a) * rx, ly = Math.sin(a) * ry;
-      const x = origin.x + cx + lx * Math.cos(tilt) - ly * Math.sin(tilt);
-      const y = origin.y + cy + lx * Math.sin(tilt) + ly * Math.cos(tilt);
+      const x = offCX + cx + lx * Math.cos(tilt) - ly * Math.sin(tilt);
+      const y = offCY + cy + lx * Math.sin(tilt) + ly * Math.cos(tilt);
 
       const depth = (1 - Math.sin(a)) / 2; // 1 = front, 0 = back
       return {
@@ -223,25 +243,37 @@
       t.el.style.transform =
         `translate(-50%, -50%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${rot.toFixed(2)}deg) scale(${s.toFixed(3)})`;
       if (!t.el.classList.contains("is-active")) {
-        t.el.style.opacity = o.toFixed(3);
-        if (z != null) t.el.style.zIndex = String(z);
+        // only touch opacity / z-index when the rounded value actually changed
+        const oo = o.toFixed(3);
+        if (t._o !== oo) { t.el.style.opacity = oo; t._o = oo; }
+        if (z != null && t._z !== z) { t.el.style.zIndex = String(z); t._z = z; }
       }
     }
 
+    /* ---- render loop, pausable when offscreen or tab hidden (C5) ---- */
     let elapsed = 0, last = 0, raf = null;
+    let loopEnabled = false, onScreen = true;
+    function shouldRun() { return loopEnabled && onScreen && !document.hidden; }
+    function startLoop() { if (raf == null && shouldRun()) { last = 0; raf = requestAnimationFrame(frame); } }
+    function stopLoop() { if (raf != null) { cancelAnimationFrame(raf); raf = null; } }
     function frame(now) {
+      if (!shouldRun()) { raf = null; return; }
       if (!last) last = now;
       const dt = Math.min((now - last) / 1000, 0.1);
       last = now;
+      // when fully settled and paused (e.g. hover), the frame is identical — skip it
+      if (paused && elapsed === frame._le) { raf = requestAnimationFrame(frame); return; }
       if (!paused) elapsed += dt;
-      tiles.forEach((t) => {
+      frame._le = elapsed;
+      for (let k = 0; k < tiles.length; k++) {
+        const t = tiles[k];
         const op = orbitPos(t, elapsed);
         const b = t.blend;
         paint(t,
           lerp(t.sx, op.x, b), lerp(t.sy, op.y, b),
           lerp(t.srot, op.rot, b), lerp(1, op.scale, b),
           lerp(1, op.opacity, b), Math.round(lerp(30, op.z, b)));
-      });
+      }
       raf = requestAnimationFrame(frame);
     }
 
@@ -263,23 +295,33 @@
     function moveIntoStage() {
       tiles.forEach((t) => orbitStage.appendChild(t.el));
       inStage = true;
-      updateOrigin();
+      measureStage();
       if (preloader) preloader.classList.add("is-hidden");
       document.body.classList.add("intro-done", "loaded");
       initRevealObserver();
     }
 
+    // pause the reel loop whenever the hero scrolls out of view or the tab hides
+    const heroIO = new IntersectionObserver((es) => {
+      onScreen = es[0].isIntersecting;
+      if (onScreen) startLoop(); else stopLoop();
+    }, { threshold: 0 });
+    heroIO.observe(orbitStage);
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopLoop(); else startLoop();
+    });
+
     /* ---- reduced motion (or no GSAP): skip straight to the reels ---- */
     if (reduce || !hasGSAP) {
       moveIntoStage();
       tiles.forEach((t) => (t.blend = 1));
-      last = 0;
-      raf = requestAnimationFrame(frame);
+      loopEnabled = true;
+      startLoop();
       return;
     }
 
     /* ---- ① preload: tiles stacked at centre, flipping like a video ---- */
-    updateOrigin();
+    measureStage();
     computeScatter();
     let cur = 0;
     const showCur = () =>
@@ -289,21 +331,31 @@
       requestAnimationFrame(() => preloader && preloader.classList.add("is-ready")));
 
     const flipT = setInterval(() => { cur = (cur + 1) % tiles.length; showCur(); }, CFG.flip);
-    let prog = 0;
-    const progT = setInterval(() => {
-      prog = Math.min(90, prog + Math.random() * 8);
-      if (plBar) plBar.style.width = prog + "%";
-    }, 220);
+
+    // honest progress: fill the bar as each tile thumbnail actually decodes,
+    // and start the intro once they're decoded (not when every page byte loads)
+    let decoded = 0;
+    const total = tiles.length;
+    const decodes = tiles.map((t) =>
+      t.img.decode().catch(() => {}).then(() => {
+        decoded++;
+        if (plBar) plBar.style.width = Math.round((decoded / total) * 100) + "%";
+      })
+    );
+    Promise.race([
+      Promise.all(decodes),
+      new Promise((res) => setTimeout(res, 2500)), // don't wait forever on a slow tile
+    ]).then(() => startIntro());
+    setTimeout(startIntro, 6000); // absolute safety net
 
     let started = false;
     function startIntro() {
       if (started) return;
       started = true;
       clearInterval(flipT);
-      clearInterval(progT);
       if (plBar) plBar.style.width = "100%";
       computeScatter();
-      updateOrigin();
+      measureStage();
 
       const tl = gsap.timeline();
 
@@ -322,7 +374,7 @@
         CFG.spreadDur * 0.55);
 
       // ③ fly into the two diagonal reels — start the loop, then blend 0→1
-      tl.call(() => { last = 0; raf = requestAnimationFrame(frame); }, null, `+=${CFG.spreadHold}`);
+      tl.call(() => { loopEnabled = true; startLoop(); }, null, `+=${CFG.spreadHold}`);
       tiles.forEach((t, i) => {
         tl.to(t, { blend: 1, duration: CFG.flyDur, ease: CFG.flyEase },
           `<${(i * CFG.flyStag).toFixed(3)}`);
@@ -332,9 +384,12 @@
       tl.call(moveIntoStage);
     }
 
-    window.addEventListener("load", () => setTimeout(startIntro, 900));
-    setTimeout(startIntro, 6000); // safety net
-    window.addEventListener("resize", () => { computeScatter(); updateOrigin(); }, { passive: true });
+    let rzTick = false;
+    window.addEventListener("resize", () => {
+      if (rzTick) return;
+      rzTick = true;
+      requestAnimationFrame(() => { computeScatter(); measureStage(); rzTick = false; });
+    }, { passive: true });
   })();
 
   /* ------------------------------------------------------------------
@@ -346,7 +401,7 @@
   function cardHTML(p, i) {
     return `
       <div class="canvas-card" data-index="${i}" role="button" tabindex="0" aria-label="Preview ${p.title}">
-        <img src="assets/paintings/${p.file}" alt="${p.title} — original oil painting by Maheen" loading="lazy">
+        <img src="assets/paintings/sm/${p.file}" alt="${p.title} — original oil painting by Maheen" loading="lazy" decoding="async">
         <span class="canvas-card__view">＋</span>
         <div class="canvas-card__overlay">
           <span class="canvas-card__index">${String(i + 1).padStart(2, "0")} / ${PAINTINGS.length}</span>
@@ -440,7 +495,7 @@
         el.style.setProperty("--fy", (Math.random() * 16 - 8).toFixed(1) + "px");
         el.style.setProperty("--frot", (Math.random() * 12 - 6).toFixed(1) + "deg");
       }
-      el.innerHTML = `<img src="assets/paintings/${file}" alt="" loading="lazy">`;
+      el.innerHTML = `<img src="assets/paintings/sm/${file}" alt="" loading="lazy" decoding="async">`;
       layer.appendChild(el);
       requestAnimationFrame(() => el.classList.add("is-visible"));
 
@@ -538,13 +593,21 @@
   const lbIndex = document.getElementById("lightboxIndex");
   let currentIndex = 0;
 
+  lbImage.decoding = "async";
+  function prefetch(i) {
+    const p = PAINTINGS[(i + PAINTINGS.length) % PAINTINGS.length];
+    const im = new Image();
+    im.src = `assets/paintings/md/${p.file}`;
+  }
   function renderLightbox() {
     const p = PAINTINGS[currentIndex];
-    lbImage.src = `assets/paintings/${p.file}`;
+    lbImage.src = `assets/paintings/md/${p.file}`;
     lbImage.alt = `${p.title} — original oil painting by Maheen`;
     lbTitle.textContent = p.title;
     lbDetails.textContent = `${MEDIUM} · ${p.year} — ${p.mood}`;
     lbIndex.textContent = `${String(currentIndex + 1).padStart(2, "0")} / ${PAINTINGS.length}`;
+    prefetch(currentIndex + 1);   // neighbours ready → instant arrow nav
+    prefetch(currentIndex - 1);
   }
 
   function openLightbox(index) {
@@ -651,23 +714,36 @@
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // build one <img> per painting
-    const shots = PAINTINGS.map((p, i) => {
-      const im = new Image();
-      im.className = "reel-shot" + (i === 0 ? " is-on" : "");
-      im.src = `assets/paintings/${p.file}`;
-      im.alt = `${p.title} — original oil painting by Maheen`;
-      screenEl.appendChild(im);
-      return im;
-    });
-
+    // Images are built LAZILY (only when the section nears the viewport) so the
+    // 45-image catalogue no longer competes with the intro on first load.
+    let shots = [];
+    let built = false;
     let idx = 0;
+
+    function build() {
+      if (built) return;
+      built = true;
+      shots = PAINTINGS.map((p, i) => {
+        const im = new Image();
+        im.className = "reel-shot" + (i === 0 ? " is-on" : "");
+        im.decoding = "async";
+        im.src = `assets/paintings/md/${p.file}`;   // 1200px (~120KB) not full-res
+        im.alt = `${p.title} — original oil painting by Maheen`;
+        screenEl.appendChild(im);
+        return im;
+      });
+      const first = shots[0];
+      if (first.complete && first.naturalWidth) applyShape(first);
+      else first.addEventListener("load", () => applyShape(first), { once: true });
+      setCaption(0);
+    }
 
     function classify(ar) {
       return ar >= 1.15 ? "landscape" : ar <= 0.87 ? "portrait" : "square";
     }
     function applyShape(img) {
-      const ar = (img.naturalWidth / img.naturalHeight) || 0.75;
+      let ar = img._ar;
+      if (!ar) { ar = (img.naturalWidth / img.naturalHeight) || 0.75; if (img.naturalWidth) img._ar = ar; }
       const shape = classify(ar);
       const isCircle = shape === "square" && SQUARE_AS_CIRCLE;
       const vh = window.innerHeight, vw = window.innerWidth;
@@ -683,6 +759,7 @@
         `${String(i + 1).padStart(2, "0")} / ${PAINTINGS.length} — ${PAINTINGS[i].title}`;
     }
     function showShot(n) {
+      if (!shots.length) return;
       shots[idx].classList.remove("is-on");
       idx = n;
       shots[idx].classList.add("is-on");
@@ -694,9 +771,9 @@
     frame.setAttribute("role", "button");
     frame.setAttribute("tabindex", "0");
     frame.setAttribute("aria-label", "Open the current painting");
-    frame.addEventListener("click", () => openLightbox(idx));
+    frame.addEventListener("click", () => { if (shots.length) openLightbox(idx); });
     frame.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openLightbox(idx); }
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (shots.length) openLightbox(idx); }
     });
 
     // --- reduced motion: no pinning, no cycling; show a calm framed picture ---
@@ -704,10 +781,7 @@
       track.classList.add("reel--static");
       pin.classList.add("is-framed");
       frame.style.transform = "none";
-      const first = shots[0];
-      if (first.complete && first.naturalWidth) { applyShape(first); }
-      else first.addEventListener("load", () => applyShape(first), { once: true });
-      setCaption(0);
+      build();
       return;
     }
 
@@ -721,24 +795,37 @@
       frame.style.transform = `scale(${scale.toFixed(3)})`;
       pin.classList.toggle("is-framed", scale < (START_SCALE + END_SCALE) / 2);
     }
-    let ticking = false;
+    let onView = false, ticking = false;
     function requestScroll() {
-      if (ticking) return;
+      if (!onView || ticking) return;      // only compute while the reel is on screen
       ticking = true;
       requestAnimationFrame(() => { onScroll(); ticking = false; });
     }
     window.addEventListener("scroll", requestScroll, { passive: true });
-    window.addEventListener("resize", () => { applyShape(shots[idx]); onScroll(); }, { passive: true });
+    let rTick = false;
+    window.addEventListener("resize", () => {
+      if (rTick) return;
+      rTick = true;
+      requestAnimationFrame(() => { if (shots.length) applyShape(shots[idx]); if (onView) onScroll(); rTick = false; });
+    }, { passive: true });
 
-    // flipbook
-    setInterval(() => showShot((idx + 1) % shots.length), FLIP_MS);
+    // flipbook — only runs while the reel is visible and the tab is active
+    let flipTimer = null;
+    function startFlip() { if (!flipTimer && shots.length) flipTimer = setInterval(() => showShot((idx + 1) % shots.length), FLIP_MS); }
+    function stopFlip() { if (flipTimer) { clearInterval(flipTimer); flipTimer = null; } }
 
-    // init (shape the first frame once its size is known)
-    const first = shots[0];
-    if (first.complete && first.naturalWidth) applyShape(first);
-    else first.addEventListener("load", () => applyShape(first), { once: true });
-    setCaption(0);
-    onScroll();
+    // build + activate only when the section approaches the viewport; pause when it leaves
+    const io = new IntersectionObserver((es) => {
+      onView = es[0].isIntersecting;
+      if (onView) { build(); onScroll(); if (!document.hidden) startFlip(); }
+      else stopFlip();
+    }, { rootMargin: "300px 0px 300px 0px", threshold: 0 });
+    io.observe(track);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopFlip();
+      else if (onView) startFlip();
+    });
   })();
 
   /* ------------------------------------------------------------------
