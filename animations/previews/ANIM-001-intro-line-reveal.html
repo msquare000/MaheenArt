@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANIM-001 · Intro Line Reveal — Preview</title>
+<style>
+  :root{
+    /* ---- animation params (driven by control panel) ---- */
+    --duration: 0.79s;
+    --delay: 0.6s;
+    --stagger: 0.015s;
+    --rotate: -40deg;
+    --translate: 50%;
+    --blur: 12px;
+    --perspective: 1000px;
+    --ease: cubic-bezier(.77,0,.175,1);
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    background:#0d0d0d;color:#f2f2f2;
+    display:flex;min-height:100vh;overflow:hidden;
+    transition:background .4s ease,color .4s ease;
+  }
+  body.theme--light{background:#f4f2ee;color:#111}
+
+  /* ============ STAGE ============ */
+  .stage{
+    flex:1;position:relative;display:flex;align-items:center;justify-content:center;
+    padding:6vw;text-align:center;
+  }
+  .headline{
+    perspective:var(--perspective);
+    font-weight:800;line-height:1.02;letter-spacing:-.02em;
+    font-size:clamp(2rem,7vw,6rem);
+    max-width:14ch;
+  }
+  /* each line is a clipping window; inner is what animates */
+  .line{display:block;overflow:hidden}
+  .line__inner{
+    display:block;
+    transform-style:preserve-3d;transform-origin:center center;backface-visibility:hidden;
+    transform:translateY(var(--translate)) rotateX(var(--rotate));
+    opacity:0;filter:blur(var(--blur));
+    transition:
+      transform var(--duration) var(--ease),
+      opacity   var(--duration) var(--ease),
+      filter    var(--duration) var(--ease);
+  }
+  /* per-line stagger (up to 12 lines) */
+  .line:nth-child(1)  .line__inner{transition-delay:calc(var(--delay) + 0  * var(--stagger))}
+  .line:nth-child(2)  .line__inner{transition-delay:calc(var(--delay) + 1  * var(--stagger))}
+  .line:nth-child(3)  .line__inner{transition-delay:calc(var(--delay) + 2  * var(--stagger))}
+  .line:nth-child(4)  .line__inner{transition-delay:calc(var(--delay) + 3  * var(--stagger))}
+  .line:nth-child(5)  .line__inner{transition-delay:calc(var(--delay) + 4  * var(--stagger))}
+  .line:nth-child(6)  .line__inner{transition-delay:calc(var(--delay) + 5  * var(--stagger))}
+  .line:nth-child(7)  .line__inner{transition-delay:calc(var(--delay) + 6  * var(--stagger))}
+  .line:nth-child(8)  .line__inner{transition-delay:calc(var(--delay) + 7  * var(--stagger))}
+  .line:nth-child(9)  .line__inner{transition-delay:calc(var(--delay) + 8  * var(--stagger))}
+  .line:nth-child(10) .line__inner{transition-delay:calc(var(--delay) + 9  * var(--stagger))}
+  .line:nth-child(11) .line__inner{transition-delay:calc(var(--delay) + 10 * var(--stagger))}
+  .line:nth-child(12) .line__inner{transition-delay:calc(var(--delay) + 11 * var(--stagger))}
+
+  /* the "has--finished" reveal state */
+  .stage.is--finished .line__inner{transform:none;opacity:1;filter:blur(0)}
+
+  /* faint baseline guides so the 3D motion is legible */
+  .stage::after{
+    content:"";position:absolute;left:0;right:0;top:50%;height:1px;
+    background:currentColor;opacity:.06;pointer-events:none;
+  }
+
+  /* ============ CONTROL PANEL ============ */
+  .panel{
+    width:320px;flex-shrink:0;height:100vh;overflow-y:auto;
+    background:#161616;border-left:1px solid #2a2a2a;
+    padding:20px 20px 40px;font-size:13px;
+  }
+  .panel h1{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#fff;margin-bottom:2px}
+  .panel .sub{color:#888;font-size:11px;margin-bottom:18px;line-height:1.5}
+  .panel .tag{display:inline-block;background:#2a2a2a;color:#bbb;border-radius:4px;padding:2px 7px;font-size:10px;margin:0 4px 4px 0}
+  .ctrl{margin-bottom:16px}
+  .ctrl label{display:flex;justify-content:space-between;color:#ccc;margin-bottom:6px}
+  .ctrl label .val{color:#6cf;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:#6cf}
+  select,textarea{
+    width:100%;background:#0e0e0e;border:1px solid #333;color:#eee;
+    border-radius:6px;padding:8px;font-family:inherit;font-size:12px;
+  }
+  textarea{resize:vertical;min-height:64px;line-height:1.4}
+  .row{display:flex;gap:8px}
+  .btn{
+    flex:1;cursor:pointer;border:none;border-radius:6px;padding:10px;
+    font-weight:600;font-size:12px;letter-spacing:.03em;
+    background:#6cf;color:#062028;transition:filter .15s;
+  }
+  .btn:hover{filter:brightness(1.1)}
+  .btn.secondary{background:#2a2a2a;color:#ddd}
+  .toggle{display:flex;align-items:center;gap:8px;cursor:pointer;color:#ccc}
+  .divider{height:1px;background:#262626;margin:18px 0}
+  .hint{color:#666;font-size:11px;line-height:1.5;margin-top:4px}
+  .code{background:#0e0e0e;border:1px solid #2a2a2a;border-radius:6px;padding:10px;color:#9cdcfe;
+    font-family:ui-monospace,Consolas,monospace;font-size:11px;white-space:pre-wrap;margin-top:8px;max-height:180px;overflow:auto}
+</style>
+</head>
+<body>
+
+  <div class="stage" id="stage">
+    <div class="headline" id="headline"><!-- lines injected by JS --></div>
+  </div>
+
+  <aside class="panel">
+    <h1>ANIM-001</h1>
+    <div class="sub">Intro Line Reveal — reconstruction of the <b>gregorcollienne.com</b> welcome animation.</div>
+    <span class="tag">CSS transitions</span><span class="tag">3D rotateX</span><span class="tag">staggered</span><span class="tag">preloader-gated</span>
+
+    <div class="divider"></div>
+
+    <div class="ctrl">
+      <label>Text (one line per row)</label>
+      <textarea id="text">Gregor
+Collienne</textarea>
+    </div>
+
+    <div class="ctrl">
+      <label>Duration <span class="val" id="v-duration">0.79s</span></label>
+      <input type="range" id="duration" min="0.1" max="3" step="0.01" value="0.79">
+    </div>
+    <div class="ctrl">
+      <label>Start delay <span class="val" id="v-delay">0.60s</span></label>
+      <input type="range" id="delay" min="0" max="2" step="0.05" value="0.6">
+    </div>
+    <div class="ctrl">
+      <label>Stagger / line <span class="val" id="v-stagger">0.015s</span></label>
+      <input type="range" id="stagger" min="0" max="0.3" step="0.005" value="0.015">
+    </div>
+    <div class="ctrl">
+      <label>Rotate X (start) <span class="val" id="v-rotate">-40°</span></label>
+      <input type="range" id="rotate" min="-90" max="90" step="1" value="-40">
+    </div>
+    <div class="ctrl">
+      <label>Translate Y (start) <span class="val" id="v-translate">50%</span></label>
+      <input type="range" id="translate" min="0" max="120" step="1" value="50">
+    </div>
+    <div class="ctrl">
+      <label>Blur (start) <span class="val" id="v-blur">12px</span></label>
+      <input type="range" id="blur" min="0" max="40" step="1" value="12">
+    </div>
+    <div class="ctrl">
+      <label>Perspective <span class="val" id="v-perspective">1000px</span></label>
+      <input type="range" id="perspective" min="200" max="3000" step="50" value="1000">
+    </div>
+
+    <div class="ctrl">
+      <label>Easing</label>
+      <select id="ease">
+        <option value="cubic-bezier(.77,0,.175,1)" selected>easeInOutQuart (site default)</option>
+        <option value="cubic-bezier(.5,0,.5,1)">easeInOutSine</option>
+        <option value="cubic-bezier(.22,1,.36,1)">easeOutQuint</option>
+        <option value="cubic-bezier(.16,1,.3,1)">easeOutExpo</option>
+        <option value="cubic-bezier(.34,1.56,.64,1)">back / overshoot</option>
+        <option value="ease-in-out">ease-in-out</option>
+        <option value="linear">linear</option>
+      </select>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="ctrl">
+      <label class="toggle"><input type="checkbox" id="autoloop"> Auto-loop replay</label>
+      <div class="hint">Re-runs the intro every few seconds so you can watch it repeatedly.</div>
+    </div>
+    <div class="ctrl">
+      <label class="toggle"><input type="checkbox" id="theme"> Light background</label>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="replay">▶ Replay</button>
+      <button class="btn secondary" id="reset">Reset</button>
+    </div>
+
+    <div class="divider"></div>
+    <label style="color:#ccc;display:block;margin-bottom:4px">Live CSS (copy)</label>
+    <div class="code" id="cssout"></div>
+  </aside>
+
+<script>
+  const root = document.documentElement;
+  const stage = document.getElementById('stage');
+  const headline = document.getElementById('headline');
+
+  const params = [
+    ['duration','--duration','s',v=>v+'s',v=>(+v).toFixed(2)+'s'],
+    ['delay','--delay','s',v=>v+'s',v=>(+v).toFixed(2)+'s'],
+    ['stagger','--stagger','s',v=>v+'s',v=>(+v).toFixed(3)+'s'],
+    ['rotate','--rotate','deg',v=>v+'deg',v=>v+'°'],
+    ['translate','--translate','%',v=>v+'%',v=>v+'%'],
+    ['blur','--blur','px',v=>v+'px',v=>v+'px'],
+    ['perspective','--perspective','px',v=>v+'px',v=>v+'px'],
+  ];
+
+  function apply(id){
+    const p = params.find(x=>x[0]===id);
+    const el = document.getElementById(id);
+    root.style.setProperty(p[1], p[3](el.value));
+    document.getElementById('v-'+id).textContent = p[4](el.value);
+  }
+  params.forEach(p=>{
+    const el = document.getElementById(p[0]);
+    el.addEventListener('input',()=>{ apply(p[0]); dumpCSS(); });
+    apply(p[0]);
+  });
+
+  document.getElementById('ease').addEventListener('change',e=>{
+    root.style.setProperty('--ease', e.target.value); dumpCSS();
+  });
+
+  // build lines from textarea
+  function buildLines(){
+    const lines = document.getElementById('text').value.split('\n').filter(l=>l.trim().length);
+    headline.innerHTML = lines.map(l=>`<span class="line"><span class="line__inner">${l.replace(/</g,'&lt;')}</span></span>`).join('');
+  }
+  document.getElementById('text').addEventListener('input',()=>{ buildLines(); play(); });
+
+  // play = simulate the preloader "has--finished" flip
+  let loopTimer=null;
+  function play(){
+    stage.classList.remove('is--finished');
+    void stage.offsetWidth;             // force reflow so the transition restarts
+    requestAnimationFrame(()=>requestAnimationFrame(()=>stage.classList.add('is--finished')));
+  }
+  function reset(){ stage.classList.remove('is--finished'); }
+
+  document.getElementById('replay').addEventListener('click',play);
+  document.getElementById('reset').addEventListener('click',reset);
+
+  document.getElementById('autoloop').addEventListener('change',e=>{
+    clearInterval(loopTimer);
+    if(e.target.checked){ play(); loopTimer=setInterval(play,3000); }
+  });
+  document.getElementById('theme').addEventListener('change',e=>{
+    document.body.classList.toggle('theme--light',e.target.checked);
+  });
+
+  function dumpCSS(){
+    const g = k=>getComputedStyle(root).getPropertyValue(k).trim();
+    document.getElementById('cssout').textContent =
+`.line__inner{
+  transform: translateY(${g('--translate')}) rotateX(${g('--rotate')});
+  opacity: 0;
+  filter: blur(${g('--blur')});
+  transition: all ${g('--duration')} ${g('--ease')};
+}
+/* on .has--finished */
+.line__inner{ transform:none; opacity:1; filter:blur(0); }
+/* stagger: +${g('--stagger')} per line, delay ${g('--delay')} */`;
+  }
+
+  // init
+  buildLines();
+  dumpCSS();
+  setTimeout(play, 400);   // mimic the site's initial reveal after load
+</script>
+</body>
+</html>

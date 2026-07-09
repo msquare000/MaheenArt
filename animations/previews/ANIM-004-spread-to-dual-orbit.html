@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANIM-004 · Preload → Spread → Dual Diagonal Orbit — Preview</title>
+<style>
+  :root{
+    --bg:#fbf9f4; --panel:#f4efe3; --text:#241f18; --text-soft:#6b6455;
+    --gold:#b7862e; --gold-pale:#efe1be; --line:rgba(36,31,24,.12);
+    --ease:cubic-bezier(0.22,1,0.36,1);
+    --tile-w:96px; --tile-h:128px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Albert Sans","Segoe UI",sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+
+  .wrap{display:flex;height:100vh}
+  .stage{position:relative;flex:1;overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 30%, #fff 0%, var(--bg) 55%, var(--panel) 100%);}
+
+  /* painting tiles — every transform written by JS */
+  .tile{position:absolute;left:50%;top:50%;width:var(--tile-w);height:var(--tile-h);
+    border-radius:3px;overflow:hidden;opacity:0;
+    box-shadow:0 12px 30px rgba(36,31,24,.20),0 2px 6px rgba(36,31,24,.14);
+    will-change:transform,opacity;cursor:pointer;
+    outline:1px solid rgba(255,255,255,.5);outline-offset:-1px}
+  .tile img{width:100%;height:100%;object-fit:cover;display:block}
+
+  /* soft scrim so the centered text stays readable over the busy reels */
+  .text-scrim{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    width:min(120%,900px);height:min(70%,460px);z-index:90;pointer-events:none;
+    background:radial-gradient(closest-side,
+      rgba(251,249,244,.94) 0%, rgba(251,249,244,.86) 45%,
+      rgba(251,249,244,.55) 72%, rgba(251,249,244,0) 100%);
+    opacity:0;transition:opacity .8s var(--ease)}
+  .stage.is-orbiting .text-scrim{opacity:1}
+
+  /* centered text — sits ON TOP of the orbits */
+  .center-text{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    z-index:100;text-align:center;pointer-events:none;width:min(90%,720px)}
+
+  .pl-name{font-family:"Fraunces",Georgia,serif;font-style:italic;font-weight:400;
+    font-size:clamp(2rem,6.5vw,4.4rem);line-height:1.02;letter-spacing:.01em;
+    perspective:1000px}
+  .pl-name .ln{display:block;overflow:hidden;padding:.06em .08em}
+  .pl-name .ln i{display:block;font-style:italic;transform:translateY(60%) rotateX(-42deg);
+    opacity:0;filter:blur(10px);
+    transition:transform .9s var(--ease),opacity .9s var(--ease),filter .9s var(--ease)}
+  .stage.is-ready .pl-name .ln:nth-child(1) i{transition-delay:.25s}
+  .stage.is-ready .pl-name .ln:nth-child(2) i{transition-delay:.33s}
+  .stage.is-ready .pl-name .ln i{transform:none;opacity:1;filter:blur(0)}
+
+  .hero-text{opacity:0;pointer-events:none}
+  .hero-text .eyebrow{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--gold);margin-bottom:1rem}
+  .hero-text h1{font-family:"Fraunces",Georgia,serif;font-weight:400;
+    font-size:clamp(2rem,6vw,4.2rem);line-height:1.04;letter-spacing:-.01em}
+  .hero-text h1 em{font-style:italic;color:var(--gold)}
+  .hero-text .btns{display:flex;gap:.8rem;justify-content:center;margin-top:1.6rem;pointer-events:auto}
+  .hero-text .btn2{padding:.75rem 1.4rem;border-radius:40px;font-size:.82rem;font-weight:600;cursor:pointer;border:1px solid var(--text)}
+  .hero-text .solid{background:var(--text);color:var(--bg)}
+  .hero-text .ghost{background:transparent;color:var(--text)}
+
+  .phase{position:absolute;left:18px;bottom:16px;z-index:101;
+    font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--text-soft)}
+
+  /* ---- panel ---- */
+  .panel{width:330px;flex-shrink:0;height:100vh;overflow-y:auto;background:#161616;color:#eee;
+    border-left:1px solid #2a2a2a;padding:20px 20px 60px;font-size:13px}
+  .panel h1{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#fff}
+  .panel .sub{color:#888;font-size:11px;margin:2px 0 14px;line-height:1.5}
+  .tag{display:inline-block;background:#2a2a2a;color:#bbb;border-radius:4px;padding:2px 7px;font-size:10px;margin:0 4px 4px 0}
+  .grp{border:1px solid #262626;border-radius:8px;padding:12px;margin-bottom:14px}
+  .grp>.t{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7ad;margin-bottom:10px}
+  .ctrl{margin-bottom:11px}.ctrl:last-child{margin-bottom:0}
+  .ctrl label{display:flex;justify-content:space-between;color:#ccc;margin-bottom:5px}
+  .ctrl label .val{color:#6cf;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:#6cf}
+  select{width:100%;background:#0e0e0e;border:1px solid #333;color:#eee;border-radius:6px;padding:7px;font-size:12px}
+  .row{display:flex;gap:8px}
+  .btn{flex:1;cursor:pointer;border:none;border-radius:6px;padding:11px;font-weight:600;font-size:12px;background:#6cf;color:#062028}
+  .btn:hover{filter:brightness(1.1)}.btn.secondary{background:#2a2a2a;color:#ddd}
+  .hint{color:#666;font-size:11px;line-height:1.5;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="text-scrim" id="scrim"></div>
+    <div class="center-text">
+      <div class="pl-name" id="plName">
+        <span class="ln"><i>Art By</i></span>
+        <span class="ln"><i>Maheen</i></span>
+      </div>
+      <div class="hero-text" id="heroText">
+        <p class="eyebrow">the art of oil and light</p>
+        <h1><em>Stillness</em>, painted</h1>
+        <div class="btns">
+          <button class="btn2 solid">View the Gallery</button>
+          <button class="btn2 ghost">Commission a Piece</button>
+        </div>
+      </div>
+    </div>
+    <div class="phase" id="phase">phase — preload</div>
+  </div>
+
+  <aside class="panel">
+    <h1>ANIM-004</h1>
+    <div class="sub">Preload flipbook → images <b>spread</b> across the page → they fly into <b>2 diagonal reels</b> (orbits), text centered on top. GSAP-driven.</div>
+    <span class="tag">GSAP</span><span class="tag">spread</span><span class="tag">dual orbit</span><span class="tag">diagonal reels</span>
+
+    <div class="grp">
+      <div class="t">Sequence timing</div>
+      <div class="ctrl"><label>Preload hold <span class="val" id="v-hold">2.6s</span></label>
+        <input type="range" id="hold" min="0.6" max="6" step="0.1" value="2.6"></div>
+      <div class="ctrl"><label>Flip interval <span class="val" id="v-flip">700ms</span></label>
+        <input type="range" id="flip" min="150" max="1500" step="50" value="700"></div>
+      <div class="ctrl"><label>Spread duration <span class="val" id="v-sdur">1.10s</span></label>
+        <input type="range" id="sdur" min="0.3" max="2.5" step="0.05" value="1.1"></div>
+      <div class="ctrl"><label>Spread stagger <span class="val" id="v-sstag">0.030s</span></label>
+        <input type="range" id="sstag" min="0" max="0.12" step="0.005" value="0.03"></div>
+      <div class="ctrl"><label>Spread hold <span class="val" id="v-shold">0.5s</span></label>
+        <input type="range" id="shold" min="0" max="3" step="0.1" value="0.5"></div>
+      <div class="ctrl"><label>Fly-to-orbit duration <span class="val" id="v-fdur">1.60s</span></label>
+        <input type="range" id="fdur" min="0.4" max="3.5" step="0.05" value="1.6"></div>
+      <div class="ctrl"><label>Fly stagger <span class="val" id="v-fstag">0.040s</span></label>
+        <input type="range" id="fstag" min="0" max="0.15" step="0.005" value="0.04"></div>
+      <div class="ctrl"><label>Fly ease</label>
+        <select id="fease">
+          <option value="power3.inOut" selected>power3.inOut (smooth)</option>
+          <option value="power2.inOut">power2.inOut</option>
+          <option value="expo.inOut">expo.inOut</option>
+          <option value="back.inOut(1.2)">back.inOut (overshoot)</option>
+          <option value="elastic.out(1,0.6)">elastic.out (bouncy)</option>
+        </select></div>
+    </div>
+
+    <div class="grp">
+      <div class="t">The two diagonal reels</div>
+      <div class="ctrl"><label>Tiles (split across both) <span class="val" id="v-count">24</span></label>
+        <input type="range" id="count" min="10" max="40" step="2" value="24"></div>
+      <div class="ctrl"><label>Reel tilt — left <span class="val" id="v-tiltA">35°</span></label>
+        <input type="range" id="tiltA" min="-80" max="80" step="1" value="35"></div>
+      <div class="ctrl"><label>Reel tilt — right <span class="val" id="v-tiltB">35°</span></label>
+        <input type="range" id="tiltB" min="-80" max="80" step="1" value="35"></div>
+      <div class="ctrl"><label>Diagonal offset X <span class="val" id="v-offx">29%</span></label>
+        <input type="range" id="offx" min="0" max="45" step="1" value="29"></div>
+      <div class="ctrl"><label>Diagonal offset Y <span class="val" id="v-offy">16%</span></label>
+        <input type="range" id="offy" min="0" max="40" step="1" value="16"></div>
+      <div class="ctrl"><label>Reel radius X <span class="val" id="v-rx">19%</span></label>
+        <input type="range" id="rx" min="8" max="45" step="1" value="19"></div>
+      <div class="ctrl"><label>Reel radius Y <span class="val" id="v-ry">13%</span></label>
+        <input type="range" id="ry" min="5" max="40" step="1" value="13"></div>
+      <div class="ctrl"><label>Orbit period <span class="val" id="v-period">30s</span></label>
+        <input type="range" id="period" min="6" max="80" step="1" value="30"></div>
+      <div class="ctrl"><label>Spin direction</label>
+        <select id="dir">
+          <option value="mirror" selected>Mirrored (reels counter-rotate)</option>
+          <option value="same">Same direction</option>
+        </select></div>
+      <div class="ctrl"><label>Tile size <span class="val" id="v-tsize">96px</span></label>
+        <input type="range" id="tsize" min="50" max="170" step="2" value="96"></div>
+      <div class="ctrl"><label style="cursor:pointer"><span>Scrim behind text</span>
+        <input type="checkbox" id="scrimOn" checked style="width:auto;accent-color:#6cf"></label>
+        <div class="hint">Softly fades the wall behind the centered text so it stays readable over the reels.</div></div>
+    </div>
+
+    <div class="grp">
+      <div class="t">Preload picture</div>
+      <div class="ctrl"><label>Centered size <span class="val" id="v-big">2.6×</span></label>
+        <input type="range" id="big" min="1.4" max="4" step="0.05" value="2.6"></div>
+    </div>
+
+    <div class="row">
+      <button class="btn" id="replay">▶ Replay sequence</button>
+      <button class="btn secondary" id="skip">Skip to orbit</button>
+    </div>
+    <div class="hint">Tiles are clickable. Reels keep spinning after the intro.</div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script>
+const stage=document.getElementById('stage');
+const plName=document.getElementById('plName');
+const heroText=document.getElementById('heroText');
+const phaseEl=document.getElementById('phase');
+const root=document.documentElement;
+
+const TOTAL=45;
+const val=id=>parseFloat(document.getElementById(id).value);
+const txt=(id,s)=>document.getElementById('v-'+id).textContent=s;
+
+let tiles=[], raf=null, flipTimer=null, tl=null, elapsed=0, lastT=0, orbiting=false;
+
+/* ---------- build tiles ---------- */
+function buildTiles(){
+  tiles.forEach(t=>t.el.remove());
+  tiles=[];
+  const n=Math.round(val('count'));
+  for(let i=0;i<n;i++){
+    const pi=Math.round(i*(TOTAL-1)/(n-1))+1;              // spread across all 45
+    const el=document.createElement('div');
+    el.className='tile';
+    const im=document.createElement('img');
+    im.src=`../../project/assets/paintings/painting-${String(pi).padStart(2,'0')}.jpg`;
+    im.alt='';
+    im.onerror=()=>{el.style.background='linear-gradient(135deg,#3a3a4a,#6a4a5a)';};
+    el.appendChild(im);
+    stage.appendChild(el);
+    tiles.push({el, i, n, orbit: i%2, baseAngle:0, blend:0, sx:0, sy:0, srot:0});
+  }
+  // give each orbit evenly spaced base angles
+  [0,1].forEach(o=>{
+    const grp=tiles.filter(t=>t.orbit===o);
+    grp.forEach((t,k)=>t.baseAngle=(k/grp.length)*Math.PI*2);
+  });
+  computeScatter();
+}
+
+/* ---------- scatter targets: a jittered grid covering the whole stage ---------- */
+function computeScatter(){
+  const W=stage.clientWidth, H=stage.clientHeight;
+  const n=tiles.length;
+  const cols=Math.ceil(Math.sqrt(n*W/H)), rows=Math.ceil(n/cols);
+  tiles.forEach((t,i)=>{
+    const c=i%cols, r=Math.floor(i/cols);
+    const jx=(Math.sin(i*12.9898)*0.5)*(W/cols)*0.42;
+    const jy=(Math.cos(i*78.233)*0.5)*(H/rows)*0.42;
+    t.sx=((c+0.5)/cols)*W - W/2 + jx;
+    t.sy=((r+0.5)/rows)*H - H/2 + jy;
+    t.srot=(Math.sin(i*3.7)*14);
+  });
+}
+
+/* ---------- orbit math: a tilted ellipse = a diagonal "reel" ---------- */
+function orbitPos(t,time){
+  const W=stage.clientWidth, H=stage.clientHeight;
+  const rx=val('rx')/100*W, ry=val('ry')/100*H;
+  const ox=val('offx')/100*W, oy=val('offy')/100*H;
+  const period=val('period');
+  const mirror=document.getElementById('dir').value==='mirror';
+  const left=t.orbit===0;
+  const tilt=(left?val('tiltA'):val('tiltB'))*Math.PI/180;
+  const cx=left?-ox:ox, cy=left?oy:-oy;                 // diagonal placement
+  const dir=mirror?(left?1:-1):1;
+  const ang=t.baseAngle+dir*(time/period)*Math.PI*2;
+
+  const lx=Math.cos(ang)*rx, ly=Math.sin(ang)*ry;
+  const x=cx+lx*Math.cos(tilt)-ly*Math.sin(tilt);
+  const y=cy+lx*Math.sin(tilt)+ly*Math.cos(tilt);
+
+  const depth=(1-Math.sin(ang))/2;                      // 1 = front, 0 = back
+  return { x, y,
+    rot:(left?val('tiltA'):val('tiltB'))*0.25 - Math.cos(ang)*12,
+    scale:0.62+depth*0.55,
+    opacity:0.42+depth*0.58,
+    z:Math.round(depth*100) };
+}
+
+const lerp=(a,b,u)=>a+(b-a)*u;
+function apply(t,x,y,rot,s,o,z){
+  t.el.style.transform=`translate(-50%,-50%) translate(${x.toFixed(1)}px,${y.toFixed(1)}px) rotate(${rot.toFixed(2)}deg) scale(${s.toFixed(3)})`;
+  t.el.style.opacity=o.toFixed(3);
+  if(z!=null) t.el.style.zIndex=z;
+}
+
+/* ---------- the render loop (runs from the fly phase onward) ---------- */
+function tick(now){
+  if(!lastT) lastT=now;
+  const dt=Math.min((now-lastT)/1000,0.1); lastT=now;
+  elapsed+=dt;
+  tiles.forEach(t=>{
+    const op=orbitPos(t,elapsed);
+    const b=t.blend;
+    apply(t,
+      lerp(t.sx,op.x,b), lerp(t.sy,op.y,b),
+      lerp(t.srot,op.rot,b), lerp(1,op.scale,b),
+      lerp(1,op.opacity,b), Math.round(lerp(50,op.z,b)));
+  });
+  raf=requestAnimationFrame(tick);
+}
+
+/* ---------- the sequence ---------- */
+function reset(){
+  if(tl) tl.kill();
+  if(raf) cancelAnimationFrame(raf), raf=null;
+  clearInterval(flipTimer);
+  lastT=0; elapsed=0; orbiting=false;
+  stage.classList.remove('is-ready','is-orbiting');
+  gsap.set(heroText,{opacity:0});
+  gsap.set(plName,{opacity:1,scale:1});
+  tiles.forEach(t=>{ t.blend=0; apply(t,0,0,0,val('big'),0,50); });
+}
+
+function play(){
+  reset();
+  computeScatter();
+  const big=val('big');
+  phaseEl.textContent='phase — preload (flipbook)';
+
+  // 1) name reveal + flipbook of the centered picture
+  requestAnimationFrame(()=>requestAnimationFrame(()=>stage.classList.add('is-ready')));
+  let cur=0;
+  const showCur=()=>tiles.forEach((t,i)=>{ apply(t,0,0,0,big,i===cur?1:0, i===cur?60:50); });
+  showCur();
+  flipTimer=setInterval(()=>{ cur=(cur+1)%tiles.length; showCur(); }, val('flip'));
+
+  const hold=val('hold');
+  tl=gsap.timeline({delay:hold});
+
+  // 2) SPREAD — the big picture bursts apart into tiles across the page
+  tl.call(()=>{ clearInterval(flipTimer); phaseEl.textContent='phase — spread'; });
+  tiles.forEach((t,i)=>{
+    const proxy={x:0,y:0,rot:0,s:big,o:(i===cur?1:0)};
+    tl.to(proxy,{
+      x:t.sx,y:t.sy,rot:t.srot,s:1,o:1,
+      duration:val('sdur'), ease:'power3.out',
+      onUpdate:()=>apply(t,proxy.x,proxy.y,proxy.rot,proxy.s,proxy.o,50)
+    }, i*val('sstag'));
+  });
+
+  // 3) FLY INTO THE TWO DIAGONAL REELS (blend 0→1; loop lerps scatter→orbit)
+  tl.call(()=>{
+    phaseEl.textContent='phase — fly into reels';
+    orbiting=true; lastT=0; raf=requestAnimationFrame(tick);
+  }, null, `+=${val('shold')}`);
+
+  tiles.forEach((t,i)=>{
+    tl.to(t,{blend:1,duration:val('fdur'),ease:document.getElementById('fease').value},
+      `<${(i*val('fstag')).toFixed(3)}`);
+  });
+
+  // 4) text handoff: name out, hero copy in — sits over the reels
+  tl.to(plName,{opacity:0,scale:.94,duration:.5,ease:'power2.in'},'<0.1')
+    .to(heroText,{opacity:1,duration:.8,ease:'power2.out',
+      onStart:()=>{heroText.style.pointerEvents='auto';
+        phaseEl.textContent='phase — orbiting (2 diagonal reels)';
+        if(document.getElementById('scrimOn').checked) stage.classList.add('is-orbiting');}},'<0.35');
+}
+
+function skipToOrbit(){
+  reset(); computeScatter();
+  stage.classList.add('is-ready');
+  gsap.set(plName,{opacity:0}); gsap.set(heroText,{opacity:1});
+  heroText.style.pointerEvents='auto';
+  tiles.forEach(t=>t.blend=1);
+  phaseEl.textContent='phase — orbiting (2 diagonal reels)';
+  if(document.getElementById('scrimOn').checked) stage.classList.add('is-orbiting');
+  lastT=0; raf=requestAnimationFrame(tick);
+}
+
+document.getElementById('scrimOn').addEventListener('change',e=>{
+  stage.classList.toggle('is-orbiting', e.target.checked && orbiting);
+});
+
+/* ---------- controls ---------- */
+const fmt={hold:v=>v+'s',flip:v=>v+'ms',sdur:v=>(+v).toFixed(2)+'s',sstag:v=>(+v).toFixed(3)+'s',
+  shold:v=>v+'s',fdur:v=>(+v).toFixed(2)+'s',fstag:v=>(+v).toFixed(3)+'s',count:v=>v,
+  tiltA:v=>v+'°',tiltB:v=>v+'°',offx:v=>v+'%',offy:v=>v+'%',rx:v=>v+'%',ry:v=>v+'%',
+  period:v=>v+'s',tsize:v=>v+'px',big:v=>(+v).toFixed(2)+'×'};
+Object.keys(fmt).forEach(id=>{
+  const el=document.getElementById(id);
+  const set=()=>{ txt(id,fmt[id](el.value));
+    if(id==='tsize'){ root.style.setProperty('--tile-w',el.value+'px');
+                      root.style.setProperty('--tile-h',Math.round(el.value*1.333)+'px'); }
+    if(id==='count'){ buildTiles(); play(); }
+  };
+  el.addEventListener('input',set); set();
+});
+document.getElementById('dir').addEventListener('change',()=>{});
+document.getElementById('replay').addEventListener('click',play);
+document.getElementById('skip').addEventListener('click',skipToOrbit);
+window.addEventListener('resize',()=>{ computeScatter(); });
+
+buildTiles();
+play();
+</script>
+</body>
+</html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANIM-003 · Gallery Zoom-Out Frame (adaptive) — Preview</title>
+<style>
+  :root{
+    --bg:#fbf9f4; --panel:#f4efe3; --text:#241f18; --text-soft:#6b6455;
+    --gold:#b7862e; --line:rgba(36,31,24,.12);
+    --ease:cubic-bezier(0.22,1,0.36,1);
+
+    --start-scale: 1.45;
+    --end-scale: 0.42;
+    --frame-thick: 16px;
+    --img-fit: cover;
+    --frame-radius: 3px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Albert Sans","Segoe UI",sans-serif;background:var(--bg);color:var(--text);}
+  .doc{width:calc(100% - 340px)}
+  @media(max-width:800px){.doc{width:100%}}
+
+  .intro,.outro{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6vw;gap:1rem}
+  .intro h2,.outro h2{font-family:"Fraunces",Georgia,serif;font-style:italic;font-size:clamp(1.6rem,4vw,3rem)}
+  .intro p,.outro p{color:var(--text-soft);max-width:44ch}
+  .scroll-hint{font-family:"JetBrains Mono",monospace;font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-top:1rem;animation:bob 1.6s var(--ease) infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
+
+  .pin-track{height:260vh;position:relative}
+  .pin{position:sticky;top:0;height:100vh;overflow:hidden;
+    background:radial-gradient(120% 80% at 50% 12%, #ffffff 0%, #f3efe6 45%, #e9e3d6 100%);}
+  .pin::before{content:"";position:absolute;left:50%;top:6%;width:44%;height:10px;transform:translateX(-50%);
+    border-radius:20px;background:linear-gradient(90deg,transparent,#fff,transparent);
+    box-shadow:0 0 60px 20px rgba(255,255,255,.7);opacity:.9}
+  .pin::after{content:"";position:absolute;left:0;right:0;bottom:0;height:26%;
+    background:linear-gradient(180deg,#e5ded0,#d8cfbd);border-top:1px solid var(--line)}
+
+  .scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+
+  /* frame — width/height set by JS to the current image's aspect ratio */
+  .frame-w{
+    position:relative;
+    width:40vh;height:60vh;                 /* JS overrides per image */
+    transform:scale(var(--start-scale));
+    transform-origin:center 46%;
+    will-change:transform,width,height;
+    transition:width .55s var(--ease), height .55s var(--ease);
+  }
+  .frame{
+    position:absolute;inset:0;padding:var(--frame-thick);
+    background:linear-gradient(145deg,#d9b25e,#a9781f 40%,#caa04b 70%,#8c6a1e);
+    border-radius:var(--frame-radius);
+    box-shadow:0 40px 90px rgba(36,31,24,.34),0 8px 22px rgba(36,31,24,.22),inset 0 0 0 1px rgba(255,255,255,.25);
+    transition:border-radius .55s var(--ease);
+  }
+  .screen{position:absolute;inset:var(--frame-thick);overflow:hidden;background:#111;border-radius:1px;
+    transition:border-radius .55s var(--ease);}
+  .screen .shot{position:absolute;inset:0;width:100%;height:100%;object-fit:var(--img-fit);
+    opacity:0;transition:opacity .5s var(--ease)}
+  .screen .shot.is-on{opacity:1}
+  .frame::after{content:"";position:absolute;inset:calc(var(--frame-thick) - 4px);
+    border:1px solid rgba(255,255,255,.35);border-radius:2px;pointer-events:none;transition:border-radius .55s var(--ease);}
+
+  /* circular variant */
+  .frame-w.is-circle .frame,
+  .frame-w.is-circle .screen,
+  .frame-w.is-circle .frame::after{border-radius:50%}
+
+  .shape-badge{position:absolute;left:50%;top:calc(100% + 14px);transform:translateX(-50%);
+    font-family:"JetBrains Mono",monospace;font-size:.55rem;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--text-soft);white-space:nowrap;opacity:.9}
+
+  .plaque{position:absolute;left:50%;bottom:14%;transform:translateX(-50%);
+    font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--text-soft);opacity:0;transition:opacity .5s var(--ease)}
+  .pin.is-framed .plaque{opacity:1}
+
+  .live-pill{position:absolute;top:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;
+    background:rgba(20,18,15,.82);color:#fff;padding:7px 14px;border-radius:20px;
+    font-family:"JetBrains Mono",monospace;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;z-index:5}
+  .live-pill i{width:7px;height:7px;border-radius:50%;background:#e5484d;animation:blink 1.2s infinite}
+  @keyframes blink{50%{opacity:.3}}
+
+  .prog{position:absolute;left:20px;bottom:20px;font-family:"JetBrains Mono",monospace;font-size:.62rem;letter-spacing:.12em;color:var(--text-soft);z-index:5}
+
+  .panel{position:fixed;top:0;right:0;width:340px;height:100vh;overflow-y:auto;background:#161616;color:#eee;
+    border-left:1px solid #2a2a2a;padding:20px 20px 60px;font-size:13px;z-index:50}
+  .panel h1{font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:#fff}
+  .panel .sub{color:#888;font-size:11px;margin:2px 0 14px;line-height:1.5}
+  .tag{display:inline-block;background:#2a2a2a;color:#bbb;border-radius:4px;padding:2px 7px;font-size:10px;margin:0 4px 4px 0}
+  .grp{border:1px solid #262626;border-radius:8px;padding:12px;margin-bottom:14px}
+  .grp>.t{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#7ad;margin-bottom:10px}
+  .ctrl{margin-bottom:12px}.ctrl:last-child{margin-bottom:0}
+  .ctrl label{display:flex;justify-content:space-between;color:#ccc;margin-bottom:6px}
+  .ctrl label .val{color:#6cf;font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:#6cf}
+  select{width:100%;background:#0e0e0e;border:1px solid #333;color:#eee;border-radius:6px;padding:8px;font-size:12px}
+  .row{display:flex;gap:8px}
+  .btn{flex:1;cursor:pointer;border:none;border-radius:6px;padding:11px;font-weight:600;font-size:12px;background:#6cf;color:#062028}
+  .btn:hover{filter:brightness(1.1)}.btn.secondary{background:#2a2a2a;color:#ddd}
+  .hint{color:#666;font-size:11px;line-height:1.5;margin-top:4px}
+  .scrub-note{background:#0e1b22;border:1px solid #17323f;border-radius:6px;padding:9px;color:#9cd;font-size:11px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div class="doc">
+  <section class="intro">
+    <p class="tag" style="background:#efe1be;color:#8c6a1e">the collection · 45 works</p>
+    <h2>Scroll down to enter the gallery</h2>
+    <p>Each painting plays like a film and the frame reshapes to fit it — tall frame for portraits, wide frame for landscapes — then zooms out to hang on the wall.</p>
+    <div class="scroll-hint">↓ scroll</div>
+  </section>
+
+  <div class="pin-track" id="pinTrack">
+    <div class="pin" id="pin">
+      <div class="live-pill"><i></i> Collection · reel</div>
+      <div class="scene">
+        <div class="frame-w" id="frameW">
+          <div class="frame"><div class="screen" id="screen"></div></div>
+          <div class="shape-badge" id="shapeBadge"></div>
+        </div>
+      </div>
+      <div class="plaque">Art By Maheen — Original Oil on Canvas</div>
+      <div class="prog" id="prog">scale 1.45 · progress 0%</div>
+    </div>
+  </div>
+
+  <section class="outro">
+    <h2>…and the collection continues</h2>
+    <p>Below here your normal collection list / grid would carry on.</p>
+  </section>
+</div>
+
+<aside class="panel">
+  <h1>ANIM-003</h1>
+  <div class="sub">Gallery zoom-out frame with an <b>adaptive frame</b> that reshapes to each image (portrait / landscape / square / circle). All 45 of your paintings.</div>
+  <span class="tag">GSAP</span><span class="tag">ScrollTrigger</span><span class="tag">adaptive frame</span><span class="tag">flipbook</span>
+
+  <div class="grp">
+    <div class="t">Preview without scrolling</div>
+    <div class="scrub-note">Drag to scrub the zoom — or scroll the page on the left.</div>
+    <div class="ctrl" style="margin-top:10px">
+      <label>Manual scrub <span class="val" id="v-scrub">0%</span></label>
+      <input type="range" id="scrub" min="0" max="100" step="1" value="0">
+    </div>
+  </div>
+
+  <div class="grp">
+    <div class="t">Frame shape</div>
+    <div class="ctrl">
+      <label>Force shape (to preview each)</label>
+      <select id="force">
+        <option value="auto" selected>Auto — detect from each image</option>
+        <option value="landscape">Landscape frame</option>
+        <option value="portrait">Portrait frame</option>
+        <option value="square">Square frame</option>
+        <option value="circle">Circular frame</option>
+      </select>
+      <div class="hint">Your 45 images are only portrait (40) &amp; landscape (5) — none are square/circular. Use this to see the square &amp; circle frames.</div>
+    </div>
+    <div class="ctrl">
+      <label>Square-shaped images render as</label>
+      <select id="sq">
+        <option value="square" selected>Square frame</option>
+        <option value="circle">Circular frame</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label>Frame height <span class="val" id="v-fh">60%</span></label>
+      <input type="range" id="fh" min="38" max="78" step="1" value="60">
+    </div>
+  </div>
+
+  <div class="grp">
+    <div class="t">Zoom</div>
+    <div class="ctrl">
+      <label>Start scale (immersive) <span class="val" id="v-start">1.45</span></label>
+      <input type="range" id="start" min="1" max="2.2" step="0.05" value="1.45">
+    </div>
+    <div class="ctrl">
+      <label>End scale (framed) <span class="val" id="v-end">0.42</span></label>
+      <input type="range" id="end" min="0.2" max="0.9" step="0.02" value="0.42">
+    </div>
+    <div class="ctrl">
+      <label>Direction</label>
+      <select id="dir">
+        <option value="out" selected>Zoom OUT — big → framed (like noth.in)</option>
+        <option value="in">Zoom IN — framed → big</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label>Scroll length <span class="val" id="v-len">260vh</span></label>
+      <input type="range" id="len" min="150" max="400" step="10" value="260">
+    </div>
+  </div>
+
+  <div class="grp">
+    <div class="t">Fake video (painting flipbook)</div>
+    <div class="ctrl">
+      <label>Change every <span class="val" id="v-int">1000ms</span></label>
+      <input type="range" id="int" min="120" max="2000" step="20" value="1000">
+    </div>
+    <div class="ctrl">
+      <label>Crossfade <span class="val" id="v-fade">0.5s</span></label>
+      <input type="range" id="fade" min="0" max="1" step="0.05" value="0.5">
+    </div>
+    <div class="ctrl">
+      <label>Image fit</label>
+      <select id="fit">
+        <option value="cover" selected>Cover (fills frame, video-like)</option>
+        <option value="contain">Contain (whole painting)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grp">
+    <div class="t">Frame border</div>
+    <div class="ctrl">
+      <label>Thickness <span class="val" id="v-thick">16px</span></label>
+      <input type="range" id="thick" min="0" max="48" step="2" value="16">
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="btn" id="top">↑ Back to start</button>
+    <button class="btn secondary" id="reset">Reset</button>
+  </div>
+</aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+  const root=document.documentElement;
+  const screen=document.getElementById('screen');
+  const frameW=document.getElementById('frameW');
+  const pin=document.getElementById('pin');
+  const prog=document.getElementById('prog');
+  const badge=document.getElementById('shapeBadge');
+
+  // all 45 paintings
+  const N=45;
+  const IMAGES=Array.from({length:N},(_,i)=>`../../project/assets/paintings/painting-${String(i+1).padStart(2,'0')}.jpg`);
+
+  const shots=IMAGES.map((src,i)=>{
+    const im=document.createElement('img');
+    im.className='shot'+(i===0?' is-on':''); im.src=src; im.alt='';
+    im.onerror=()=>{im.style.background='linear-gradient(135deg,#3a3a4a,#6a4a5a)';};
+    screen.appendChild(im); return im;
+  });
+
+  // ---- adaptive frame: reshape to the current image ----
+  function classify(ar){ return ar>=1.15?'landscape': ar<=0.87?'portrait':'square'; }
+  function applyShape(img){
+    const force=document.getElementById('force').value;
+    let shape, ar;
+    if(force!=='auto'){
+      shape=force;
+      ar = shape==='landscape'?1.4 : shape==='portrait'?0.72 : 1;   // square & circle => 1
+    }else{
+      ar=(img.naturalWidth/img.naturalHeight)||1;
+      shape=classify(ar);
+    }
+    const roundSquares=document.getElementById('sq').value==='circle';
+    const isCircle = force==='circle' || (shape==='square' && roundSquares);
+
+    // size from a base height, width follows aspect ratio, clamp to viewport
+    const fh=parseInt(document.getElementById('fh').value)/100;
+    const vh=window.innerHeight, vw=window.innerWidth;
+    let h=vh*fh, w=h*ar;
+    const maxW=vw*0.80; if(w>maxW){w=maxW;h=w/ar;}
+    frameW.style.width=w+'px'; frameW.style.height=h+'px';
+    frameW.classList.toggle('is-circle',isCircle);
+    badge.textContent = (isCircle?'circle':shape)+' frame · '+ar.toFixed(2)+':1';
+  }
+
+  // ---- flipbook ----
+  let idx=0,cycle=null;
+  function showShot(n){
+    shots[idx].classList.remove('is-on');
+    idx=n; shots[idx].classList.add('is-on');
+    applyShape(shots[idx]);
+  }
+  function startCycle(ms){
+    clearInterval(cycle);
+    cycle=setInterval(()=>{ showShot((idx+1)%shots.length); }, ms);
+  }
+
+  // ---- zoom driver ----
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function setProgress(p){
+    const dir=document.getElementById('dir').value;
+    const s0=parseFloat(document.getElementById('start').value);
+    const s1=parseFloat(document.getElementById('end').value);
+    const from=dir==='out'?s0:s1, to=dir==='out'?s1:s0;
+    const scale=lerp(from,to,p);
+    frameW.style.transform=`scale(${scale.toFixed(3)})`;
+    pin.classList.toggle('is-framed', scale<(s0+s1)/2);
+    prog.textContent=`scale ${scale.toFixed(2)} · progress ${Math.round(p*100)}%`;
+  }
+
+  // ---- ScrollTrigger pin + scrub ----
+  let st=null;
+  function buildST(){
+    if(st) st.kill();
+    const lenVH=parseInt(document.getElementById('len').value);
+    document.getElementById('pinTrack').style.height=lenVH+'vh';
+    gsap.registerPlugin(ScrollTrigger);
+    st=ScrollTrigger.create({
+      trigger:'#pinTrack',start:'top top',end:'bottom bottom',scrub:true,pin:'#pin',
+      onUpdate:self=>{ const sc=document.getElementById('scrub');
+        sc.value=Math.round(self.progress*100);
+        document.getElementById('v-scrub').textContent=sc.value+'%';
+        setProgress(self.progress); }
+    });
+    setProgress(0);
+  }
+
+  // ---- controls ----
+  const scrub=document.getElementById('scrub');
+  const currentP=()=>parseInt(scrub.value)/100;
+
+  const bindVar=(id,cssvar,unit,fmt,after)=>{
+    const el=document.getElementById(id);
+    const set=()=>{ if(cssvar) root.style.setProperty(cssvar,el.value+unit);
+      document.getElementById('v-'+id).textContent=fmt(el.value); if(after)after(el.value); };
+    el.addEventListener('input',set); set();
+  };
+  bindVar('thick','--frame-thick','px',v=>v+'px');
+  bindVar('start',null,'',v=>(+v).toFixed(2),()=>setProgress(currentP()));
+  bindVar('end',null,'',v=>(+v).toFixed(2),()=>setProgress(currentP()));
+  bindVar('len',null,'',v=>v+'vh',()=>buildST());
+  bindVar('int',null,'',v=>v+'ms',v=>startCycle(parseInt(v)));
+  bindVar('fade',null,'',v=>(+v).toFixed(2)+'s',v=>shots.forEach(s=>s.style.transitionDuration=v+'s'));
+  bindVar('fh',null,'',v=>v+'%',()=>applyShape(shots[idx]));
+
+  document.getElementById('fit').addEventListener('change',e=>root.style.setProperty('--img-fit',e.target.value));
+  document.getElementById('dir').addEventListener('change',()=>setProgress(currentP()));
+  document.getElementById('force').addEventListener('change',()=>applyShape(shots[idx]));
+  document.getElementById('sq').addEventListener('change',()=>applyShape(shots[idx]));
+  scrub.addEventListener('input',()=>{ document.getElementById('v-scrub').textContent=scrub.value+'%'; setProgress(currentP()); });
+  window.addEventListener('resize',()=>applyShape(shots[idx]));
+
+  document.getElementById('top').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+  document.getElementById('reset').addEventListener('click',()=>location.reload());
+
+  // init — shape the first frame once the first image knows its size
+  const first=shots[0];
+  if(first.complete && first.naturalWidth) applyShape(first);
+  else first.addEventListener('load',()=>applyShape(first),{once:true});
+  startCycle(1000);
+  buildST();
+</script>
+</body>
+</html>

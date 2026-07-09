@@ -1,0 +1,335 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                        ANIMATIONS — ASCII STORYBOARD                           ║
+║                                                                                ║
+║  A running registry of every animation added to this project.                  ║
+║  Each animation is documented as a frame-by-frame ASCII storyboard so the      ║
+║  motion can be understood at a glance without running any code.                ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+────────────────────────────────────────────────────────────────────────────────
+ LEGEND
+────────────────────────────────────────────────────────────────────────────────
+  [ ID ]      Unique animation id (ANIM-001, ANIM-002, ...)
+  NAME        Human-readable name
+  SOURCE      Where it comes from (URL / class / idea)
+  TYPE        Kind of animation (fade / slide / reveal / stagger / scroll / ...)
+  ENGINE      Library used (CSS / GSAP / Canvas / SVG / ...)
+  TRIGGER     What starts it (page load / scroll / hover / click / ...)
+  DURATION    Total run time
+  PREVIEW     Path to the standalone HTML preview file (if built)
+  STATUS      planned │ previewed │ approved │ implemented
+
+  Timeline symbols used in storyboards:
+    │ frame border      ░ empty / hidden      █ solid / visible
+    → movement dir      ↑↓ vertical move      ◐ mid-opacity (fading)
+    t=0.0s              time marker for each frame
+    ▓▓▓░░░ 50%          progress bar for the frame's completion
+
+────────────────────────────────────────────────────────────────────────────────
+ INDEX
+────────────────────────────────────────────────────────────────────────────────
+  ANIM-001  Intro Line Reveal  ·  previewed  ·  animations/previews/ANIM-001-intro-line-reveal.html
+  ANIM-002  Welcome + Cycling Images  ·  IMPLEMENTED  ·  project/ (index.html + css/style.css + js/main.js)
+  ANIM-003  Gallery Zoom-Out Frame  ·  IMPLEMENTED  ·  project/ (Collection section: index.html + css/style.css + js/main.js)
+  ANIM-004  Spread → Dual Diagonal FILM REELS  ·  IMPLEMENTED  ·  project/ (hero: index.html + css/style.css + js/main.js)
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [ ANIM-004 ]  Preload → Spread → Two Diagonal FILM REELS   STATUS: IMPLEMENTED │
+│ APPLIED   : Wired into the hero + preloader. Locked-in settings:                │
+│               tiles 24 · tilt L +44° / R −44° · offX 9% · offY 0%               │
+│               radiusX 24% · radiusY 5% · period 33s · mirrored spin             │
+│             Tiles restyled as CELLS OF FILM (black base + sprocket holes) so    │
+│             each reel reads as a diagonal film strip. "Art By Maheen" is now    │
+│             ENGRAVED (letterpress text-shadow). The centred text is pinned at   │
+│             z-index 60 while tiles cap at z 38 → text can never be covered;     │
+│             a radial scrim fades the wall behind it. GSAP drives the intro.     │
+│             Files: project/index.html, css/style.css, js/main.js               │
+│             (initIntroReels). 0 console errors. Verified live.                  │
+│                                                                                 │
+│ THE FILM CELL (each tile)          THE TWO REELS (offY 0, tilt ±44°)            │
+│   ▛▀▪▀▪▀▪▀▜   ← sprockets            ╲                    ╱                      │
+│   ▌ ┌─────┐ ▐                          ╲ ▪▪            ▪▪ ╱                      │
+│   ▌ │ oil │ ▐  black film base           ╲ ▪▪        ▪▪ ╱                        │
+│   ▌ │ pic │ ▐                              ╲ ▪▪    ▪▪ ╱     ← they cross in an X │
+│   ▌ └─────┘ ▐                          ┌───────────────┐                        │
+│   ▙▄▪▄▪▄▪▄▟                            │  M · MAHEEN   │ ← text ALWAYS on top    │
+│                                        └───────────────┘   (z60 > tiles z38)     │
+│                                            ╱ ▪▪    ▪▪ ╲                          │
+│                                          ╱ ▪▪        ▪▪ ╲                        │
+│                                        ╱                  ╲                      │
+│                                                                                 │
+│ ENGRAVED NAME (letterpress recipe)                                              │
+│   color: #e7e1d3                       ← a shade darker than the wall           │
+│   text-shadow: 0 -1px 1px rgba(36,31,24,.50)   ← dark inner TOP edge            │
+│                0  1px 0   rgba(255,255,255,.95) ← light lower LIP               │
+│                0  3px 6px rgba(36,31,24,.10)    ← soft cast shadow              │
+│   Reads as cut INTO the paper because the light comes from above.               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ SOURCE   : https://gregorcollienne.com/ (load → scattered image grid) + user's  │
+│            own idea: the scattered images then fly into 2 diagonal orbits       │
+│ TYPE     : 4-phase intro — flipbook → burst/scatter → flight → dual orbit       │
+│ ENGINE   : GSAP timeline (phases + stagger) + a rAF loop (endless orbiting)     │
+│ TRIGGER  : page load                                                            │
+│ TEXT     : centered, z-index above both reels, with a soft radial scrim          │
+│ PREVIEW  : animations/previews/ANIM-004-spread-to-dual-orbit.html               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ STORYBOARD                                                                     │
+│                                                                                │
+│ ① PRELOAD (0 → 2.6s)          ② SPREAD (2.6 → 3.7s)                            │
+│  ┌────────────────┐            ┌────────────────┐                              │
+│  │    Art By      │            │ ▪   ▪    ▪   ▪ │  the one big picture         │
+│  │    Maheen      │            │   ▪   ▪    ▪   │  BURSTS APART into tiles     │
+│  │   ┌────────┐   │            │ ▪   ▪   ▪    ▪ │  that fly to every corner    │
+│  │   │ IMG ▮  │   │  ══════▶   │   ▪    ▪   ▪   │  (staggered 0.03s each)      │
+│  │   │ flips  │   │            │ ▪   ▪    ▪   ▪ │                              │
+│  │   └────────┘   │            │   ▪   ▪    ▪   │                              │
+│  └────────────────┘            └────────────────┘                              │
+│  name reveals, one             tiles scattered on a                             │
+│  centered picture              jittered grid, all visible                       │
+│  flips every 700ms                                                              │
+│                                                                                │
+│ ③ FLY (4.2 → 5.8s)            ④ ORBIT (forever)                                │
+│  ┌────────────────┐            ┌────────────────┐                              │
+│  │ ▪  ╲      ╱  ▪ │            │        ▪▪▪▪    │  right reel (upper-right)    │
+│  │   ╲  ╲  ╱  ╱   │            │      ▪▪    ▪   │   tilted ellipse, spinning   │
+│  │ ▪──▶ ╲╳╱  ◀──▪ │  ══════▶   │  Stillness,    │  ← text centered ON TOP      │
+│  │   ╱  ╱  ╲  ╲   │            │   ▪   painted  │    (+ soft scrim behind)     │
+│  │ ▪  ╱      ╲  ▪ │            │  ▪▪▪▪          │  left reel (lower-left)      │
+│  └────────────────┘            └────────────────┘   counter-rotating           │
+│  each tile glides from its     two tilted ellipses along the NW–SE diagonal    │
+│  scatter spot into its reel    keep spinning; tiles scale/fade by depth        │
+│                                                                                │
+│ HOW THE HANDOFF STAYS SMOOTH (the key trick)                                    │
+│   Never "hand over" the transform between GSAP and the loop — that causes a     │
+│   visible jump. Instead each tile keeps BOTH positions and a blend value:       │
+│                                                                                │
+│     scatterPos ──────── blend 0…1 ────────▶ orbitPos(t)                        │
+│                                                                                │
+│   The rAF loop runs every frame and paints:                                     │
+│     x = lerp(scatter.x, orbit.x, blend)      (same for y / rot / scale / opacity)│
+│   GSAP only tweens `blend` 0 → 1 (staggered per tile). At blend=0 the tile sits  │
+│   exactly on its scatter spot; at blend=1 it is purely orbiting. Zero jump,      │
+│   and the orbit keeps running forever afterwards.                               │
+│                                                                                │
+│ WHAT I USED TO ACHIEVE THIS ANIMATION                                          │
+│   1. GSAP timeline — sequences the 4 phases; per-tile stagger on both the       │
+│        spread (0.03s) and the flight (0.04s). Ease: power3.out / power3.inOut.  │
+│   2. One shared writer: applyTile() builds the SAME transform string in every   │
+│        phase → `translate(-50%,-50%) translate(x,y) rotate(r) scale(s)`.        │
+│        Nothing else writes transform, so phases can't fight each other.         │
+│   3. PRELOAD: all tiles stacked at center at scale 2.6; only the current one is │
+│        opaque; setInterval flips which one → looks like one big changing image. │
+│   4. SPREAD: GSAP tweens each tile center → its scatter target, scale 2.6 → 1.  │
+│        Targets = a jittered grid sized cols≈√(n·W/H), so corners get covered.   │
+│   5. FLY + ORBIT: the blend trick above. orbitPos() is a TILTED ELLIPSE =       │
+│        the "reel":                                                              │
+│           lx = cos(a)·rx        x = cx + lx·cos(θ) − ly·sin(θ)                   │
+│           ly = sin(a)·ry        y = cy + lx·sin(θ) + ly·cos(θ)                   │
+│        θ = reel tilt (35°). Reel A center (−offX,+offY), reel B (+offX,−offY)   │
+│        → the two reels sit on a diagonal. Mirrored spin (dir = ±1).             │
+│        depth = (1−sin a)/2 drives scale, opacity and z-index → 3-D feel.        │
+│   6. TEXT: centered, z-index 100 (above both reels). A radial scrim (z-90)      │
+│        fades the wall behind it so the copy stays readable over the paintings.  │
+│   7. Control panel: every timing, both reel tilts, diagonal offsets, radii,     │
+│        period, spin direction, tile count/size, scrim on/off, replay + skip.    │
+│                                                                                │
+│ NOTES: Uses 24 of the 45 paintings by default (spread evenly across the set),   │
+│        count adjustable 10–40. NOT yet implemented into project code — the      │
+│        current hero has ONE orbit (17 items); this replaces it with TWO.        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [ ANIM-003 ]  Gallery Zoom-Out Frame (Collection section)   STATUS: IMPLEMENTED│
+│ APPLIED   : Wired into the Collection section. Implemented VANILLA (no GSAP) —  │
+│             CSS position:sticky pins the scene, a scroll handler ties scale to  │
+│             progress through a 260vh .reel-track. All 45 paintings flip as the  │
+│             fake video; frame auto-adapts per image; click frame → lightbox;    │
+│             reduced-motion → static framed picture. Files: project/index.html,  │
+│             css/style.css (.reel-*), js/main.js (initCollectionReel). 0 console │
+│             errors, no horizontal overflow, collection list intact. Verified.   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ SOURCE   : https://www.noth.in/  (#studio-video .video-w / .musee-w)           │
+│ TYPE     : scroll-scrubbed pinned zoom — media starts huge (immersive), then   │
+│            scales DOWN into a small framed picture hanging on a gallery wall.    │
+│            + ADAPTIVE FRAME: the frame reshapes to each image's aspect ratio    │
+│            (portrait→tall, landscape→wide, square→square, square→circle option) │
+│ ENGINE   : GSAP + ScrollTrigger (pin + scrub). Paintings flip like a video.    │
+│ TRIGGER  : scroll — section pins, scale is tied to scroll progress             │
+│ FAKE VID : ALL 45 paintings swapped every ~1s inside the frame (flipbook).      │
+│            (User asked for 48; folder actually holds 45: 40 portrait + 5        │
+│             landscape. No square/circular images exist — jpg has no alpha, so   │
+│             a circular SUBJECT can't be auto-detected; only aspect ratio can.)  │
+│ SCALE    : 1.45 (fills screen)  →  0.42 (framed on wall)   [measured off noth.in│
+│            as 1.4 → 0.35 across ~1300px of pinned scroll]                       │
+│ PREVIEW  : animations/previews/ANIM-003-gallery-zoom-frame.html                │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ STORYBOARD  (scroll DOWN drives the zoom-out)                                   │
+│                                                                                │
+│  progress 0%          progress 40%         progress 75%        progress 100%    │
+│  scale 1.45           scale 0.94           scale 0.68          scale 0.42       │
+│  ┌────────────┐       ┌────────────┐       ┌───┬────┬───┐      ┌──────────┐    │
+│  │████████████│       │ ┌────────┐ │       │   │▛▜▛▜│   │      │  ╔════╗  │    │
+│  │███ IMG ███│  ==>  │ │  IMG   │ │  ==>  │   │IMG │   │  ==> │  ║IMG ║  │    │
+│  │████████████│       │ │ (frame │ │       │   │▙▟▙▟│   │      │  ╚════╝  │    │
+│  │██(fills)███│       │ │ shows) │ │       │ wall▁▁▁▁▁ │      │ ▁▁wall▁▁ │    │
+│  └────────────┘       │ └────────┘ │       │  ▁floor▁  │      │ ▁▁floor▁ │    │
+│  immersive/huge       └────────────┘       └──────────┘      └──────────┘    │
+│  (looks like video)   frame appears        shrinking          small picture   │
+│  ▓░░░░░ 0%           ▓▓▓░░░ 40%           ▓▓▓▓▓░ 75%         ▓▓▓▓▓▓ 100%      │
+│                                                                                │
+│  Inside the frame, the "video" is really paintings flipping:                   │
+│    p01 ▮ →(1s crossfade)→ p02 ▮ →→ p03 ▮ → ... → p10 → loop                     │
+│                                                                                │
+│ WHAT I USED TO ACHIEVE THIS ANIMATION                                          │
+│   1. GSAP ScrollTrigger  → ScrollTrigger.create({trigger, start:'top top',     │
+│        end:'bottom bottom', pin:true, scrub:true}). "pin" freezes the scene    │
+│        on screen; "scrub" ties animation progress 1:1 to scroll position.      │
+│   2. A tall .pin-track (height 260vh) supplies the scroll distance the pinned  │
+│        scene is held for (longer track = slower, longer zoom).                 │
+│   3. onUpdate(self.progress 0→1) → linear-interpolate a CSS scale from         │
+│        1.45 down to 0.42 on the .frame-w, transform-origin:center 44%.         │
+│   4. The "video" is FAKED with a flipbook: all 45 <img> stacked in a .screen,  │
+│        one .is-on at a time, swapped by setInterval (~1s) with an opacity      │
+│        crossfade — no <video> file needed, just the paintings.                 │
+│   4b.ADAPTIVE FRAME: on each swap, read img.naturalWidth/naturalHeight →        │
+│        classify (>=1.15 landscape, <=0.87 portrait, else square). Set the      │
+│        frame's height from a % of viewport and width = height*ratio (clamped   │
+│        to 80vw), transitioned .55s so the frame morphs between shapes. A        │
+│        circular option adds border-radius:50% to frame+screen (ring frame).    │
+│        A "Force shape" control lets you preview all four frames on demand.      │
+│   5. Scene dressing (pure CSS): radial-gradient gallery wall, a soft ceiling   │
+│        light strip, a floor band, and a gilt (gold gradient) picture frame     │
+│        with inset mat line + drop shadow, plus a wall plaque that fades in     │
+│        once the media has shrunk to a picture. All in the white theme.         │
+│   6. Control panel drives CSS vars + rebuilds the ScrollTrigger live: start/   │
+│        end scale, zoom direction (out/in), scroll length, flip interval,       │
+│        crossfade, image-fit (cover/contain), frame thickness, + a manual       │
+│        scrub slider so you can preview the zoom without scrolling.             │
+│                                                                                │
+│ NOTES: Uses YOUR paintings (project/assets/paintings/painting-01..10.jpg) as   │
+│        the fake video. Reconstructed technique — none of noth.in's video/wall  │
+│        assets are used. NOT yet in project code (preview only, per request).   │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [ ANIM-002 ]  Welcome page: Name + Cycling Paintings        STATUS: IMPLEMENTED│
+│ APPLIED   : name → "Art By Maheen", white theme, 12 of the artist's own        │
+│             paintings (assets/paintings/painting-01..12.jpg). Replaced the old │
+│             sunburst preloader. Files: project/index.html, css/style.css,      │
+│             js/main.js. Verified live in browser (Playwright).                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ SOURCE   : Based on gregorcollienne.com welcome + user request                 │
+│ TYPE     : preloader — name line-reveal + centered image slideshow that cycles │
+│            until the hero page finishes loading, then whole loader fades out    │
+│ ENGINE   : CSS transitions + small JS cycler (setInterval)                      │
+│ TRIGGER  : page load; ends when hero is ready (simulated by a timer in preview)│
+│ IMAGES   : 12 painting images, centered, swap every ~700ms                      │
+│ PREVIEW  : animations/previews/ANIM-002-welcome-cycling-images.html            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ STORYBOARD                                                                     │
+│                                                                                │
+│  t=0.0s              t=0.5s              t=1.2s→loaded        hero ready        │
+│  ┌────────────┐      ┌────────────┐      ┌────────────┐      ┌────────────┐   │
+│  │            │      │  GREGOR    │      │  GREGOR    │      │            │   │
+│  │   (blank)  │      │ COLLIENNE  │      │ COLLIENNE  │      │            │   │
+│  │            │  ==> │            │  ==> │            │  ==> │  (loader   │   │
+│  │            │      │ ┌────────┐ │      │ ┌────────┐ │      │   faded    │   │
+│  │            │      │ │ img #1 │ │      │ │ img #4 │ │      │   out →    │   │
+│  │            │      │ └────────┘ │      │ └────────┘ │      │   hero)    │   │
+│  └────────────┘      └────────────┘      └────────────┘      └────────────┘   │
+│  name hidden         name revealed       images cycling      everything gone   │
+│                      img fades in        #1→#2→#3→...→#12→#1                    │
+│  ▓░░░░░ 0%          ▓▓░░░░ 25%          ▓▓▓▓▓░ 80%          ▓▓▓▓▓▓ 100%        │
+│  loadbar: [        ] → [==      ] → [========  ] → [==========] then fade       │
+│                                                                                │
+│  IMAGE CYCLE (center), each swap uses chosen transition (default 3D flip):     │
+│    #1 ▊ →(flip)→ #2 ▊ →(flip)→ #3 ▊ → ... loops through all 12 while loading    │
+│                                                                                │
+│ HOW IT WORKS                                                                   │
+│   • Name: same line-reveal recipe as ANIM-001 (translateY+rotateX+blur+fade)   │
+│   • Below it: a fixed-size frame; 12 <div.slide> stacked, one .is--in at a time│
+│   • setInterval swaps the active slide every ~700ms; transition style is        │
+│     swappable: 3D flip (site-like) / crossfade / slide-up / scale              │
+│   • A loading bar tracks progress; when hero is ready the whole .stage fades    │
+│   • Control panel tunes: name text, cycle speed, transition style+speed, image │
+│     size, name reveal params, simulated load time, loop, loading bar, theme    │
+│                                                                                │
+│ NOTES: Preview uses 12 of the reference site's paintings so it looks real —    │
+│        SWAP IN your own artwork for production. NOT yet in project code.        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [ ANIM-001 ]  Intro Line Reveal (welcome page)                STATUS: previewed│
+├──────────────────────────────────────────────────────────────────────────────┤
+│ SOURCE   : https://gregorcollienne.com/  (body.is-home .has--loaded/.has--finished)│
+│ TYPE     : preloader-gated staggered split-text line reveal (3D flip-up)       │
+│ ENGINE   : pure CSS transitions, driven by JS state classes (NOT GSAP)         │
+│ TRIGGER  : page load — JS adds has--loaded, then has--finished 1s later        │
+│ DURATION : 0.79s per line + 0.6s start delay + 0.015s stagger/line             │
+│ EASING   : cubic-bezier(.77,0,.175,1)  (easeInOutQuart)                        │
+│ PREVIEW  : animations/previews/ANIM-001-intro-line-reveal.html                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ STORYBOARD  — each line flips up in 3D, slides up, un-blurs, fades in          │
+│                                                                                │
+│  t=0.0s (hidden)        t=0.4s (flipping up)      t=0.8s (landed)              │
+│  ┌──────────────┐       ┌──────────────┐          ┌──────────────┐            │
+│  │              │       │   ╱GREGOR╱    │  ◐blur   │              │            │
+│  │  ░░░░░░░░░░   │       │  ╱ ◐◐◐◐◐ ╱    │  rotateX │   GREGOR     │  sharp     │
+│  │  (blurred,   │  ==>  │ ╱COLLIENNE╱   │  -40°→0  │  COLLIENNE   │  opacity 1 │
+│  │   below,     │       │  translateY   │          │              │            │
+│  │   rotated)   │       │   50%→0       │          │              │            │
+│  └──────────────┘       └──────────────┘          └──────────────┘            │
+│  opacity 0              opacity ~0.5               opacity 1                    │
+│  blur 12px              blur ~6px                  blur 0                       │
+│  ▓░░░░░ 0%              ▓▓▓░░░ 50%                ▓▓▓▓▓▓ 100%                  │
+│                                                                                │
+│  Per-line stagger (line N starts 0.015s after line N-1):                       │
+│    line1 ▐████████▌ delay 0.60s                                                │
+│    line2  ▐████████▌ delay 0.615s                                              │
+│    line3   ▐████████▌ delay 0.63s   ... (compounds down the block)             │
+│                                                                                │
+│ HOW IT WORKS                                                                   │
+│   • Each text line sits in an overflow:hidden window (.line)                   │
+│   • Inner (.line__inner) starts: translateY(50%) rotateX(-40deg)               │
+│                                  opacity:0  blur(12px)                          │
+│   • perspective:1000px on parent → the rotateX reads as a 3D flip              │
+│   • On body.has--finished → transform:none; opacity:1; blur:0                  │
+│   • Homepage title (.c-gregor) uses the SAME recipe + extra 0.6s delay         │
+│                                                                                │
+│ NOTES: Reconstructed from script.js + main.css. Preview has a control panel to │
+│        tune duration / delay / stagger / rotateX / translateY / blur /         │
+│        perspective / easing live. NOT yet implemented into project code.       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════
+ TEMPLATE  — copied for each new animation (do not delete)
+════════════════════════════════════════════════════════════════════════════════
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ [ ANIM-000 ]  <NAME>                                              STATUS: ...  │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ SOURCE   : ...                                                                 │
+│ TYPE     : ...                                                                 │
+│ ENGINE   : ...                                                                 │
+│ TRIGGER  : ...                                                                 │
+│ DURATION : ...                                                                 │
+│ PREVIEW  : ...                                                                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│ STORYBOARD                                                                     │
+│                                                                                │
+│   t=0.0s                    t=0.5s                    t=1.0s                    │
+│   ┌────────────┐            ┌────────────┐            ┌────────────┐           │
+│   │░░░░░░░░░░░░│            │░░░░◐◐◐◐░░░░│            │████████████│           │
+│   │░░░░░░░░░░░░│            │░░░◐◐◐◐◐░░░░│            │████████████│           │
+│   │░░░░░░░░░░░░│            │░░░░◐◐◐◐░░░░│            │████████████│           │
+│   └────────────┘            └────────────┘            └────────────┘           │
+│   hidden                    fading in                 fully visible            │
+│   ▓░░░░░ 0%                 ▓▓▓░░░ 50%                ▓▓▓▓▓▓ 100%              │
+│                                                                                │
+│ NOTES: ...                                                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+════════════════════════════════════════════════════════════════════════════════
