@@ -489,10 +489,15 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
   position: relative;
   width: 100%;
   max-width: 1150px;
-  height: clamp(300px, 40vw, 440px);
+
+  /* Give the orbit much more vertical room */
+  height: clamp(650px, 70vw, 900px);
+
   margin-top: 0.5rem;
   z-index: 1;
-  contain: layout paint;          /* isolate the reels' repaints from the page */
+
+  /* Keep layout isolation only */
+  contain: layout;
 }
 
 /* A tile is one CELL OF FILM: black film base, sprocket holes top & bottom,
@@ -561,36 +566,24 @@ h1, h2, h3, h4, blockquote, p { margin: 0; }
 }
 .reel-tile.is-active .reel-tile__tag { opacity: 1; }
 
-/* Soft center glow without cutting the orbit */
+/* soft scrim: keeps the centred text perfectly readable as the reels pass */
 .orbit-scrim {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 50%; top: 40%;
   transform: translate(-50%, -50%);
-
-  /* Much larger */
-  width: min(180%, 1100px);
-  height: min(180%, 900px);
-
+  width: min(150%, 760px);
+  height: min(150%, 400px);
   z-index: 45;
   pointer-events: none;
-
   opacity: 0;
   transition: opacity 0.9s var(--ease);
-
-  background: radial-gradient(
-    ellipse at center,
-    rgba(var(--bg-rgb), 0.92) 0%,
-    rgba(var(--bg-rgb), 0.82) 22%,
-    rgba(var(--bg-rgb), 0.45) 45%,
-    rgba(var(--bg-rgb), 0.12) 70%,
-    rgba(var(--bg-rgb), 0) 100%
-  );
+  background: radial-gradient(closest-side,
+    rgba(var(--bg-rgb), 0.95) 0%,
+    rgba(var(--bg-rgb), 0.88) 42%,
+    rgba(var(--bg-rgb), 0.55) 70%,
+    rgba(var(--bg-rgb), 0)   100%);
 }
-
-body.intro-done .orbit-scrim {
-  opacity: 1;
-}
+body.intro-done .orbit-scrim { opacity: 1; }
 
 /* the centred text always sits ABOVE the reels — it never gets disturbed */
 .hero__center {
